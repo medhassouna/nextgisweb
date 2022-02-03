@@ -1,6 +1,8 @@
 import json
+from collections import OrderedDict
 from io import BytesIO
 
+import zipstream
 from PIL import Image
 from pyramid.response import Response, FileResponse
 
@@ -165,6 +167,35 @@ def cpost(resource, request):
         charset='utf-8')
 
 
+def export(resource, request):
+    request.resource_permission(DataScope.read)
+
+    zip_stream = zipstream.ZipFile(mode='w', compression=zipstream.ZIP_DEFLATED,
+                                   allowZip64=True)
+    for i, obj in enumerate(FeatureAttachment
+                            .filter_by(resource_id=resource.id)
+                            .order_by(
+                                FeatureAttachment.feature_id,
+                                FeatureAttachment.id)):
+        meta = OrderedDict((
+            ('name', obj.name),
+            ('size', obj.size),
+            ('mime_type', obj.mime_type),
+            ('description', obj.description),
+        ))
+        meta_data = json.dumps(meta, ensure_ascii=False).encode('utf-8')
+        zip_stream.writestr('%d_%d.json' % (resource.id, i), meta_data)
+
+        fn = env.file_storage.filename(obj.fileobj)
+        zip_stream.write(fn, arcname='%d_%d.data' % (resource.id, i))
+
+    return Response(
+        app_iter=zip_stream,
+        content_type='application/zip',
+        content_disposition='attachment; filename="%d.attachments.zip"' % resource.id,
+    )
+
+
 def setup_pyramid(comp, config):
     colurl = '/api/resource/{id}/feature/{fid}/attachment/'
     itmurl = '/api/resource/{id}/feature/{fid}/attachment/{aid}'
@@ -193,3 +224,9 @@ def setup_pyramid(comp, config):
         factory=resource_factory) \
         .add_view(cget, request_method='GET') \
         .add_view(cpost, request_method='POST')
+
+    config.add_route(
+        'feature_attachment.export',
+        '/api/resource/{id}/feature_attachment/export',
+        factory=resource_factory
+    ).add_view(export)
