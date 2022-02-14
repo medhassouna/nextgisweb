@@ -39,7 +39,7 @@ define([
                 return
             }
             var data = { source: upload_meta };
-            api.route('feature_attachment.import', {id: this.resid}).put({
+            api.route('feature_description.import', {id: this.resid}).put({
                 json: data,
             }).then(
                 function () {

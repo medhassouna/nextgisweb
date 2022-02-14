@@ -1,0 +1,13 @@
+<div data-dojo-type="${baseClass}" data-dojo-attach-point="focusNode">
+    <div data-dojo-attach-point="wFile"
+            data-dojo-type="ngw-file-upload/Uploader" data-dojo-attach-point="wFile" 
+            data-dojo-props="
+                uploaderLinkText: {{gettextString 'Select a file'}},
+                uploaderHelpText: {{gettextString 'File should be a zip archive of uploaded descriptions.'}}
+            ">
+    </div>
+
+    <button data-dojo-type="dijit/form/Button" 
+        data-dojo-attach-point="buttonImport"
+        class="dijitButton--primary">{{gettext 'Import'}}</button>
+</div>

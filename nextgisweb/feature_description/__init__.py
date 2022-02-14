@@ -12,3 +12,8 @@ class FeatureDescriptionComponent(Component):
     @require('feature_layer')
     def initialize(self):
         from . import extension # NOQA
+
+    def setup_pyramid(self, config):
+        from . import api, view
+        api.setup_pyramid(self, config)
+        view.setup_pyramid(self, config)

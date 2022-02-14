@@ -221,40 +221,39 @@ def import_attachments(resource, request):
 
     upload_meta = request.json_body['source']
     data, meta = request.env.file_upload.get_filename(upload_meta['id'])
-    with ZipFile(data, mode='r', allowZip64=True) as z:
-        with DBSession.no_autoflush:
-            for meta_path in sorted([
-                Path(name) for name in z.namelist()
-                if name.endswith('.json')
-            ]):
-                try:
-                    fid = int(meta_path.parent.name)
-                except ValueError:
-                    raise DataFormatError()
+    with ZipFile(data, mode='r', allowZip64=True) as z, DBSession.no_autoflush:
+        for meta_path in sorted([
+            Path(name) for name in z.namelist()
+            if name.endswith('.json')
+        ]):
+            try:
+                fid = int(meta_path.parent.name)
+            except ValueError:
+                raise DataFormatError()
 
-                obj = FeatureAttachment(
-                    resource=resource,
-                    feature_id=fid,
-                )
+            obj = FeatureAttachment(
+                resource=resource,
+                feature_id=fid,
+            )
 
-                meta_bytes = z.read(str(meta_path))
-                try:
-                    meta = json.loads(meta_bytes.decode('utf-8'))
-                except (UnicodeDecodeError, json.JSONDecodeError):
+            meta_bytes = z.read(str(meta_path))
+            try:
+                meta = json.loads(meta_bytes.decode('utf-8'))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                raise DataFormatError()
+            for k in ('name', 'size', 'mime_type', 'description'):
+                if k not in meta:
                     raise DataFormatError()
-                for k in ('name', 'size', 'mime_type', 'description'):
-                    if k not in meta:
-                        raise DataFormatError()
-                    setattr(obj, k, meta[k])
+                setattr(obj, k, meta[k])
 
-                data_path = meta_path.with_suffix('.data')
-                obj.fileobj = env.file_storage.fileobj(component=COMP_ID)
-                dstfile = env.file_storage.filename(obj.fileobj, makedirs=True)
-                try:
-                    with z.open(str(data_path), 'r') as sf, open(dstfile, 'wb') as df:
-                        copyfileobj(sf, df)
-                except KeyError:
-                    raise DataFormatError()
+            data_path = meta_path.with_suffix('.data')
+            obj.fileobj = env.file_storage.fileobj(component=COMP_ID)
+            dstfile = env.file_storage.filename(obj.fileobj, makedirs=True)
+            try:
+                with z.open(str(data_path), 'r') as sf, open(dstfile, 'wb') as df:
+                    copyfileobj(sf, df)
+            except KeyError:
+                raise DataFormatError()
 
 
 def setup_pyramid(comp, config):
