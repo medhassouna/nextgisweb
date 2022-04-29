@@ -6,9 +6,6 @@ import sqlalchemy.sql as sql
 from shapely.geometry import box
 from sqlalchemy import select, text, func
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
-from sqlalchemy.engine.url import (
-    URL as EngineURL,
-    make_url as make_engine_url)
 from zope.interface import implementer
 
 from ..lib.logging import logger
@@ -47,7 +44,7 @@ from ..feature_layer import (
     IFeatureQueryOrderBy)
 
 from .exception import ExternalDatabaseError
-from .util import _
+from .util import _, table_exists
 
 Base = declarative_base(dependencies=('resource', 'feature_layer'))
 
@@ -81,33 +78,9 @@ class PostgisConnection(Base, Resource):
         return isinstance(parent, ResourceGroup)
 
     def get_engine(self):
-        comp = env.postgis
-
-        # Need to check connection params to see if
-        # they changed for each connection request
-        credhash = (self.hostname, self.port, self.database, self.username, self.password)
-
-        if self.id in comp._engine:
-            engine = comp._engine[self.id]
-
-            if engine._credhash == credhash:
-                return engine
-
-            else:
-                del comp._engine[self.id]
-
-        connect_timeout = int(comp.options['connect_timeout'].total_seconds())
-        statement_timeout_ms = int(comp.options['statement_timeout'].total_seconds()) * 1000
-        args = dict(connect_args=dict(
-            connect_timeout=connect_timeout,
-            options='-c statement_timeout=%d' % statement_timeout_ms))
-        engine_url = make_engine_url(EngineURL.create(
-            'postgresql+psycopg2',
-            host=self.hostname, port=self.port, database=self.database,
-            username=self.username, password=self.password))
-        engine = db.create_engine(engine_url, **args)
-
         resid = self.id
+        engine = env.postgis.get_engine(self.hostname, self.port, self.database,
+                                        self.username, self.password, key=resid)
 
         @db.event.listens_for(engine, 'connect')
         def _connect(dbapi, record):
@@ -127,15 +100,13 @@ class PostgisConnection(Base, Resource):
                 "Resource #%d, pool 0x%x, connection 0x%x returned",
                 resid, id(dbapi), id(engine))
 
-        engine._credhash = credhash
-
-        comp._engine[self.id] = engine
         return engine
 
     @contextmanager
     def get_connection(self):
+        engine = self.get_engine()
         try:
-            conn = self.get_engine().connect()
+            conn = engine.connect()
         except OperationalError:
             raise ValidationError(_("Cannot connect to the database!"))
 
@@ -219,14 +190,8 @@ class PostgisLayer(Base, Resource, SpatialLayerMixin, LayerFieldsMixin):
         self.feature_label_field = None
 
         with self.connection.get_connection() as conn:
-            result = conn.execute(text(
-                """SELECT * FROM information_schema.tables
-                WHERE table_schema = :s AND table_name = :t"""),
-                dict(s=self.schema, t=self.table))
-
-            tableref = '%s.%s' % (self.schema, self.table)
-
-            if result.first() is None:
+            if table_exists(conn, self.table, self.schema):
+                tableref = '%s.%s' % (self.schema, self.table)
                 raise ValidationError(_("Table '%(table)s' not found!") % dict(table=tableref)) # NOQA
 
             result = conn.execute(text(
