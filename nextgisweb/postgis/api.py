@@ -154,9 +154,6 @@ def postgis_check(request):
 
                 username = connection.username if connection is not None else cdata['username']
 
-                def privilege_not_granted_msg(privilege):
-                    return _("Privilege '%s' not granted.") % privilege
-
                 stmt = db.select(info_grants.c.privilege_type).where(db.and_(
                     info_grants.c.table_schema == table_schema,
                     info_grants.c.table_name == table_name,
@@ -170,7 +167,7 @@ def postgis_check(request):
                     ('DELETE', False),
                 ):
                     if privilege not in privileges:
-                        msg = privilege_not_granted_msg(privilege)
+                        msg = _("Privilege '%s' not granted.") % privilege
                         if required:
                             return msg
                         else:
@@ -235,8 +232,9 @@ def postgis_check(request):
                 else:
                     if len(int_colnames) == 0:
                         return _("Table must have an integer type column.")
-                    for name in int_colnames:
-                        check_idcol_writable(columns[name])
+                    if not any([check_idcol_writable(columns[name])
+                                for name in int_colnames]):
+                        warnings.append(_("There is no column suitable for ID writing."))
 
                     if len(geom_colnames) == 0:
                         return _("Table must have a geometry type column.")
