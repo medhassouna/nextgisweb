@@ -1,12 +1,80 @@
 import { toJS, makeAutoObservable } from "mobx";
 
-function valueToType(v) {
-    if (typeof v === "string") {
-        return "string";
-    } else if ((typeof v === "number") && (v === parseInt(v, 10))) {
-        return "integer";
-    } else if (typeof v === "number") {
-        return "float";
+class Record {
+    key;
+    value;
+    placeholder;
+
+    constructor({ store, id, key, value, placeholder = false }) {
+        makeAutoObservable(this);
+        this.store = store;
+        this.id = id;
+        this.key = key;
+        this.value = value;
+        this.placeholder = placeholder;
+    }
+
+    get type() {
+        if (typeof this.value === "string") {
+            return "string";
+        } else if (
+            typeof this.value === "number" &&
+            this.value === parseInt(this.value, 10)
+        ) {
+            return "integer";
+        } else if (typeof this.value === "number") {
+            return "float";
+        }
+    }
+
+    get error() {
+        if (this.key == "") {
+            return "Required";
+        }
+
+        console.log({k: this.key, id: this.id});
+
+        const dup = this.store.items.find(
+            (d) => d.key == this.key && d.id != this.id
+        );
+        if (dup) {
+            return "Not unique!"
+        }
+
+        return false;
+    }
+
+    update({ key, value, type }) {
+        if (key !== undefined) {
+            this.key = key;
+        }
+
+        if (value !== undefined) {
+            this.value = value;
+        }
+
+        if (type !== undefined) {
+            if (type == "string") {
+                if (this.value == undefined || this.value == null) {
+                    this.value = "";
+                } else {
+                    this.value = this.value.toString();
+                }
+            } else if (type == "integer") {
+                this.value = parseInt(this.value);
+                if (this.value == undefined || isNaN(this.value)) {
+                    this.value = 0;
+                }
+            } else if (type == "float") {
+                this.value = parseFloat(this.value);
+                if (this.value == undefined || isNaN(this.value)) {
+                    this.value = 0;
+                }
+            }
+        }
+
+        this.placeholder = false;
+        this.store.addPlaceholder();
     }
 }
 
@@ -19,13 +87,9 @@ export class EditorStore {
     }
 
     load(value) {
-        this.items = Object.entries(value.items).map(([key, value], id) => ({
-            id: id,
-            placeholder: false,
-            key: key,
-            type: valueToType(value),
-            value: value,
-        }));
+        this.items = Object.entries(value.items).map(
+            ([key, value], id) => new Record({ store: this, id, key, value })
+        );
         this.nextId = this.items.length;
         this.addPlaceholder();
     }
@@ -38,42 +102,20 @@ export class EditorStore {
         return { items: toJS(items) };
     }
 
+    delete(id) {
+        this.items = this.items.filter((itm) => itm.id !== id);
+        this.addPlaceholder();
+    }
+
     addPlaceholder() {
         if (
             this.items.length == 0 ||
             !this.items[this.items.length - 1].placeholder
         ) {
-            this.items.push({ id: this.nextId, placeholder: true });
+            this.items.push(
+                new Record({ store: this, id: this.nextId, placeholder: true })
+            );
             this.nextId++;
         }
-    }
-
-    updateItem(id, data) {
-        data.type = data.type || "string";
-        const record = this.items.find((r) => r.id == id);
-        record.key = data.key;
-        record.value = data.value;
-        if (record.type != data.type) {
-            record.type = data.type;
-            if (record.type == "string") {
-                if (record.value == undefined || record.value == null) {
-                    record.value = "";
-                } else {
-                    record.value = record.value.toString();
-                }
-            } else if (record.type == "integer") {
-                record.value = parseInt(record.value);
-                if (record.value == undefined || isNaN(record.value)) {
-                    record.value = 0;
-                }
-            } else if (record.type == "float") {
-                record.value = parseFloat(record.value);
-                if (record.value == undefined || isNaN(record.value)) {
-                    record.value = 0;
-                }
-            }
-        }
-        record.placeholder = false;
-        this.addPlaceholder();
     }
 }
