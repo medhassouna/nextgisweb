@@ -15,30 +15,23 @@ class Record {
     }
 
     get type() {
-        if (typeof this.value === "string") {
-            return "string";
-        } else if (
-            typeof this.value === "number" &&
-            this.value === parseInt(this.value, 10)
-        ) {
-            return "integer";
-        } else if (typeof this.value === "number") {
-            return "float";
+        const t = typeof this.value;
+        if (t !== "undefined") {
+            return t;
         }
     }
 
     get error() {
         if (this.key == "") {
-            return "Required";
+            return "Key name is required.";
         }
 
-        console.log({k: this.key, id: this.id});
-
-        const dup = this.store.items.find(
-            (d) => d.key == this.key && d.id != this.id
+        const duplicate = this.store.items.find(
+            (candidate) => candidate.key == this.key && candidate.id != this.id
         );
-        if (dup) {
-            return "Not unique!"
+
+        if (duplicate) {
+            return "Key name is not unique.";
         }
 
         return false;
@@ -60,14 +53,10 @@ class Record {
                 } else {
                     this.value = this.value.toString();
                 }
-            } else if (type == "integer") {
-                this.value = parseInt(this.value);
-                if (this.value == undefined || isNaN(this.value)) {
-                    this.value = 0;
-                }
-            } else if (type == "float") {
-                this.value = parseFloat(this.value);
-                if (this.value == undefined || isNaN(this.value)) {
+            } else if (type == "number") {
+                try {
+                    this.value = JSON.parse(this.value);
+                } catch (e) {
                     this.value = 0;
                 }
             }

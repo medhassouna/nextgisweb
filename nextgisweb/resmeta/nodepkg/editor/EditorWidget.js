@@ -1,6 +1,7 @@
 import { observer } from "mobx-react-lite";
 import {
     Table,
+    Tooltip,
     Input,
     InputNumber,
     Select,
@@ -12,14 +13,30 @@ import ErrorIcon from "@material-icons/svg/error";
 const { Column } = Table;
 const { Option } = Select;
 
+const KeyError = observer(({ record }) => {
+    if (record.error) {
+        return (
+            <Tooltip title={record.error}>
+                <span style={{color: "var(--error)"}}><ErrorIcon /></span>
+            </Tooltip>
+        );
+    } else {
+        return <span />;
+    }
+});
+
 const InputKey = observer(({ record }) => {
     return (
         <Input
             value={record.key}
             onChange={(e) => {
-                record.update({ key: e.target.value });
+                const props = { key: e.target.value };
+                if (record.value == undefined) {
+                    props.value = "";
+                };
+                record.update(props);
             }}
-            suffix={record.error && <ErrorIcon />}
+            suffix={<KeyError record={record}/>}
             bordered={false}
             placeholder={
                 record.placeholder ? "Type here to add an item..." : undefined
@@ -39,11 +56,10 @@ const InputValue = observer(({ record }) => {
                 bordered={false}
             />
         );
-    } else if (record.type === "integer" || record.type === "float") {
+    } else if (record.type === "number") {
         return (
             <InputNumber
                 value={record.value}
-                precision={record.type === "integer" ? 0 : undefined}
                 controls={false}
                 onChange={(newValue) => {
                     record.update({ value: newValue });
@@ -71,8 +87,7 @@ const SelectType = observer(({ record }) => {
             style={{ width: "100%" }}
         >
             <Option value="string">String</Option>
-            <Option value="integer">Integer</Option>
-            <Option value="float">Float</Option>
+            <Option value="number">Number</Option>
         </Select>
     );
 });
