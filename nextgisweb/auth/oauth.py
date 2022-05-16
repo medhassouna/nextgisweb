@@ -8,7 +8,6 @@ from urllib.parse import urlencode
 import sqlalchemy as sa
 import requests
 import zope.event
-from cachetools import TTLCache
 
 from ..env import env
 from ..lib.config import OptionAnnotations, Option
@@ -38,8 +37,6 @@ class OAuthHelper(object):
         if 'server.authorization_header' in options:
             self.server_headers['Authorization'] = options['server.authorization_header']
 
-        self.cache = TTLCache(maxsize=128, ttl=60)
-
     def authorization_code_url(self, redirect_uri, **kwargs):
         qs = dict(
             response_type='code',
@@ -54,18 +51,14 @@ class OAuthHelper(object):
         return self.options['server.auth_endpoint'] + '?' + urlencode(qs)
 
     def grant_type_password(self, username, password):
-        key = (username, sha512(password.encode('utf-8')).hexdigest())
-        tresp = self.cache.get(key)
-        if tresp is None:
-            params = dict(
-                username=username,
-                password=password)
+        params = dict(
+            username=username,
+            password=password)
 
-            if scope := self.options.get('scope'):
-                params['scope'] = ' '.join(scope)
+        if scope := self.options.get('scope'):
+            params['scope'] = ' '.join(scope)
 
-            tresp = self.cache[key] = self._token_request('password', params)
-        return tresp
+        return self._token_request('password', params)
 
     def grant_type_authorization_code(self, code, redirect_uri):
         return self._token_request('authorization_code', dict(
