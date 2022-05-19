@@ -25,7 +25,7 @@ export function CatalogBrowse({ coordinates_search }) {
 
     const [rows, setRows] = useState([]);
 
-    const latLon = useMemo(() => (lon && lat ? [lat, lon] : null), [lat, lon]);
+    const latLon = useMemo(() => (lon !== null && lat !== null ? [lat, lon] : null), [lat, lon]);
 
     const query = useMemo(() => {
         if ((search && search.length > 1) || latLon) {
