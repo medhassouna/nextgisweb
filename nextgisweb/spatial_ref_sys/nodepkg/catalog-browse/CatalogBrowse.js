@@ -82,7 +82,7 @@ export function CatalogBrowse() {
 
     const onImportClick = (id) => {
         const url = routeURL("srs.catalog.import", id);
-        window.open(url, "_self");
+        window.open(url, "_blank");
     };
 
     const columns = [
