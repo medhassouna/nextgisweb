@@ -17,7 +17,7 @@ import i18n from "@nextgisweb/pyramid/i18n!";
 import debounce from "lodash/debounce";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export function CatalogBrowse() {
+export function CatalogBrowse({ coordinates_search }) {
     const [status, setStatus] = useState(null);
     const [search, setSearch] = useState("");
     const [lon, setLon] = useState(null);
@@ -137,6 +137,7 @@ export function CatalogBrowse() {
                     allowClear
                 />
             </Form.Item>
+            { coordinates_search ? <>
             <Form.Item style={{ height: "100%" }}>
                 <Divider type="vertical" />
             </Form.Item>
@@ -166,6 +167,7 @@ export function CatalogBrowse() {
                     allowClear
                 />
             </Form.Item>
+            </> : null }
         </Form>
     );
 
