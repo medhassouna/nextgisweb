@@ -1,5 +1,5 @@
 import SearchIcon from "@material-icons/svg/search";
-import InfoOutlineIcon from "@material-icons/svg/info/outline";
+import InputOutlineIcon from "@material-icons/svg/input/outline";
 import {
     Button,
     Divider,
@@ -115,7 +115,7 @@ export function CatalogBrowse() {
                         <Button
                             type="text"
                             shape="circle"
-                            icon={<InfoOutlineIcon />}
+                            icon={<InputOutlineIcon />}
                             onClick={() => onImportClick(record.id)}
                         />
                     </Tooltip>
