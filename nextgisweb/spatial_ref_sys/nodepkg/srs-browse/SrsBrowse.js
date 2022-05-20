@@ -1,5 +1,6 @@
 import { Button } from "@nextgisweb/gui/antd";
 import { ModelBrowse } from "@nextgisweb/gui/model-browse";
+import { routeURL } from "@nextgisweb/pyramid/api";
 import i18n from "@nextgisweb/pyramid/i18n!";
 import getMessages from "../srsMessages";
 import { modelObj } from "../srsModel";
@@ -17,7 +18,8 @@ export function SrsBrowse() {
     const headerControls = [
         ({ selected, rows, setRows }) => {
             const onAddFromCatalogClick = () => {
-                console.log("click", selected, rows);
+                const url = routeURL("srs.catalog");
+                window.open(url, "_self");
             };
             return (
                 <Button onClick={onAddFromCatalogClick}>

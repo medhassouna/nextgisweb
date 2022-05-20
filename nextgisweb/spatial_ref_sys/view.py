@@ -125,7 +125,7 @@ def setup_pyramid(comp, config):
     if comp.options['catalog.enabled']:
         config.add_route(
             'srs.catalog',
-            '/srs/catalog'
+            '/srs/catalog', client=True
         ).add_view(catalog_browse, renderer=REACT_RENDERER)
 
         config.add_route(
