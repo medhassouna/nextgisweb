@@ -27,11 +27,6 @@ from .util import _, clean_user_keyname, enum_name
 MAX_TOKEN_LENGTH = 250
 
 
-@lru_cache(maxsize=256)
-def _password_token_hash_cache(v):
-    return sha256_crypt.hash(v)
-
-
 class OAuthHelper(object):
 
     def __init__(self, options):
@@ -60,37 +55,38 @@ class OAuthHelper(object):
 
     def grant_type_password(self, username, password):
         client_id = self.options.get('client.id')
-        if cache := client_id is not None:
-            pwd_token_id = _password_token_hash_cache(username + client_id + password)
 
-            try:
-                pwd_token = OAuthPasswordToken.filter_by(id=pwd_token_id).one()
-            except NoResultFound:
-                pwd_token = OAuthPasswordToken(id=pwd_token_id).persist()
-            else:
-                if pwd_token.exp > (now := datetime.utcnow()):
-                    return pwd_token.to_grant_response()
+        pwd_token_id = _password_token_hash_cache(username, password, client_id)
 
-                if pwd_token.refresh_exp > now:
-                    try:
-                        tresp = self.grant_type_refresh_token(
-                            pwd_token.refresh_token, pwd_token.access_token)
-                    except OAuthTokenRefreshException:
-                        pass
-                    else:
-                        pwd_token.update_from_grant_response(tresp)
-                        return tresp
+        try:
+            pwd_token = OAuthPasswordToken.filter_by(id=pwd_token_id).one()
+        except NoResultFound:
+            # If no token found, create new one not adding it into DBSession.
+            # otherwise an error could happen when an incomplete token record is
+            # flushed to DB.
+            pwd_token = OAuthPasswordToken(id=pwd_token_id)
+        else:
+            now = datetime.utcnow()
+            if pwd_token.exp > now:
+                return pwd_token.to_grant_response()
 
-        params = dict(
-            username=username,
-            password=password)
+            if pwd_token.refresh_exp > now:
+                try:
+                    tresp = self.grant_type_refresh_token(
+                        pwd_token.refresh_token, pwd_token.access_token)
+                except OAuthTokenRefreshException:
+                    pass
+                else:
+                    pwd_token.update_from_grant_response(tresp)
+                    return tresp
 
         if scope := self.options.get('scope'):
             params['scope'] = ' '.join(scope)
 
-        tresp = self._token_request('password', params)
-        if cache:
-            pwd_token.update_from_grant_response(tresp)
+        tresp = self._token_request('password', dict(
+            username=username, password=password))
+        pwd_token.update_from_grant_response(tresp)
+        DBSession.merge(pwd_token)
         return tresp
 
     def grant_type_authorization_code(self, code, redirect_uri):
@@ -392,6 +388,11 @@ class OAuthPasswordToken(Base):
             refresh_token=self.refresh_token,
             expires=self.exp.timestamp(),
             refresh_expires=self.refresh_exp.timestamp())
+
+
+@lru_cache(maxsize=256)
+def _password_token_hash_cache(username, password, salt):
+    return sha256_crypt.hash(f"{username}:{password}:{salt if salt else 'ngw'}")
 
 
 class OAuthToken(Base):
