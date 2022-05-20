@@ -2,13 +2,15 @@ import re
 import itertools
 from datetime import datetime, timedelta
 from collections import namedtuple
-from hashlib import blake2b, sha512
+from functools import lru_cache
+from hashlib import sha512
 from urllib.parse import urlencode
 
 import sqlalchemy as sa
 from sqlalchemy.orm.exc import NoResultFound
 import requests
 import zope.event
+from passlib.hash import sha256_crypt
 
 from ..env import env
 from ..lib.config import OptionAnnotations, Option
@@ -23,6 +25,11 @@ from .util import _, clean_user_keyname, enum_name
 
 
 MAX_TOKEN_LENGTH = 250
+
+
+@lru_cache(maxsize=256)
+def _password_token_hash_cache(v):
+    return sha256_crypt.hash(v)
 
 
 class OAuthHelper(object):
@@ -54,10 +61,7 @@ class OAuthHelper(object):
     def grant_type_password(self, username, password):
         client_id = self.options.get('client.id')
         if cache := client_id is not None:
-            h = blake2b(salt=client_id.encode()[:blake2b.SALT_SIZE])
-            h.update(username.encode())
-            h.update(password.encode())
-            pwd_token_id = h.hexdigest()
+            pwd_token_id = _password_token_hash_cache(username + client_id + password)
 
             try:
                 pwd_token = OAuthPasswordToken.filter_by(id=pwd_token_id).one()
