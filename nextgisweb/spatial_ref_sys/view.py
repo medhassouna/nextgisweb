@@ -41,10 +41,11 @@ def catalog_import(request):
 
 def srs_browse(request):
     request.require_administrator()
-
+    options = request.env.spatial_ref_sys.options
     return dict(
         title=_("Spatial reference systems"),
         entrypoint="@nextgisweb/spatial-ref-sys/srs-browse",
+        props=dict(catalogEnabled=options['catalog.enabled']),
         dynmenu=request.env.pyramid.control_panel)
 
 

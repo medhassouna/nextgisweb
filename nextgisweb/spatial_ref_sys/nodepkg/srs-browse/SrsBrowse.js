@@ -5,7 +5,7 @@ import i18n from "@nextgisweb/pyramid/i18n!";
 import getMessages from "../srsMessages";
 import { modelObj } from "../srsModel";
 
-export function SrsBrowse() {
+export function SrsBrowse({ catalogEnabled }) {
     const columns = [
         {
             title: i18n.gettext("SRS name"),
@@ -15,8 +15,10 @@ export function SrsBrowse() {
         },
     ];
 
-    const headerControls = [
-        ({ selected, rows, setRows }) => {
+    const headerControls = [];
+
+    if (catalogEnabled) {
+        headerControls.push(({ selected, rows, setRows }) => {
             const onAddFromCatalogClick = () => {
                 const url = routeURL("srs.catalog");
                 window.open(url, "_self");
@@ -26,8 +28,8 @@ export function SrsBrowse() {
                     {i18n.gettext("Add from catalog")}
                 </Button>
             );
-        },
-    ];
+        });
+    }
 
     return (
         <ModelBrowse
