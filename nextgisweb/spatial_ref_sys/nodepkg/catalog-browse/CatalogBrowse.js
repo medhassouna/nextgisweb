@@ -111,7 +111,7 @@ export function CatalogBrowse({ coordinates_search }) {
             align: "center",
             render: (text, record) => (
                 <div style={{ whiteSpace: "nowrap" }}>
-                    <Tooltip title={i18n.gettext("View")}>
+                    <Tooltip title={i18n.gettext("Import")}>
                         <Button
                             type="text"
                             shape="circle"
